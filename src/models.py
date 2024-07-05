@@ -1,6 +1,12 @@
 from enum import Enum
 
 
+class Alignment(Enum):
+	GOOD = 'good'
+	EVIL = 'evil'
+	NEUTRAL = 'neutral'
+
+
 class Character:
     name: str
     alignment: Alignment
@@ -20,9 +26,3 @@ class Character:
 
     def get_alignment(self):
     	return self.alignment
-
-
-class Alignment(Enum):
-	GOOD = 'good'
-	EVIL = 'evil'
-	NEUTRAL = 'neutral'
