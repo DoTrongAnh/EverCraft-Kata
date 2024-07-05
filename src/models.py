@@ -37,7 +37,7 @@ class Combatant(Character):
 	_hit_points: int
 
 	def __init__(self, **kwargs):
-		super(self).__init__(**kwargs)
+		super().__init__(**kwargs)
 		self._armor_class = kwargs.get('armor_class', 10)
 		self._hit_points = kwargs.get('hit_points', 5)
 
