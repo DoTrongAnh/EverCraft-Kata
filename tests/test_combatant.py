@@ -1,5 +1,7 @@
+import pytest
+
 from src.models import (
-	Alignment, Combatant
+	Ability, Alignment, Combatant
 )
 
 
@@ -59,42 +61,24 @@ def test_combatant_hit_points_default():
 	assert combatant.hit_points == 5
 
 
-def test_combatant_attack_missed(mocker):
+@pytest.mark.parametrize(
+	'dice_roll, expected_damage',
+	[
+		(9, 0),  # Attack should miss
+		(10, 1),  # Attack should hit
+		(20, 2),  # Attack should crit
+	]
+)
+def test_combatant_attack(mocker, dice_roll, expected_damage):
 	"""
-	Test case for Combatant attack when missed (roll too low)
-	"""
-	combatant = combatant_setup()
-	opponent = opponent_setup()
-	# Since default armor_class is 10, mock roll to be lower
-	mocker.patch('src.models.Dice.roll', return_value=9)
-	opponent_init_hp = opponent.hit_points
-	combatant.attack(opponent)
-	assert opponent.hit_points == opponent_init_hp
-
-
-def test_combatant_attack_hit(mocker):
-	"""
-	Test case for Combatant attack when hit (roll high enough)
+	Test case for Combatant attack with various rolls
 	"""
 	combatant = combatant_setup()
 	opponent = opponent_setup()
-	# Since default armor_class is 10, mock roll to be at least 10
-	mocker.patch('src.models.Dice.roll', return_value=10)
+	mocker.patch('src.models.Dice.roll', return_value=dice_roll)
 	opponent_init_hp = opponent.hit_points
 	combatant.attack(opponent)
-	assert opponent.hit_points == opponent_init_hp - 1
-
-
-def test_combatant_attack_crit(mocker):
-	"""
-	Test case for Combatant attack when critical hit (roll 20)
-	"""
-	combatant = combatant_setup()
-	opponent = opponent_setup()
-	mocker.patch('src.models.Dice.roll', return_value=20)
-	opponent_init_hp = opponent.hit_points
-	combatant.attack(opponent)
-	assert opponent.hit_points == opponent_init_hp - 2
+	assert opponent.hit_points == max(0, opponent_init_hp - expected_damage)
 
 
 def test_combatant_attack_fatal(mocker):
@@ -108,3 +92,32 @@ def test_combatant_attack_fatal(mocker):
 	mocker.patch('src.models.Dice.roll', return_value=20)
 	combatant.attack(opponent)
 	assert not opponent.is_alive
+
+
+@pytest.mark.parametrize(
+	'dice_roll, strength, expected_damage, survive',
+	[
+		(9, 12, 2, True),  # Attack should hit since modifier +1
+		(9, 10, 0, True),  # Attack should miss since modifier +0
+		(5, 20, 6, False),  # Attack should hit since modifier +5
+		(10, 9, 0, True),  # Attack should miss since modifier -1
+		(14, 1, 0, True),  # Attack should miss since modifier -5
+		(15, 1, 1, True),  # Attack should still hit with roll 15+
+		(20, 10, 2, True),  # Attack should crit and damage doubled
+		(20, 9, 1, True),  # Attack should crit and modifer -1 to damage
+		(20, 1, 1, True),  # Attack should crit and modifer -5 to damage
+		(20, 20, 12, False),  # Attack should crit and double modifer to damage
+	]
+)
+def test_combatant_attack_with_modifier(mocker, dice_roll, strength, expected_damage, survive):
+	"""
+	Test case for Combatant attack with various modifier scenarios
+	"""
+	combatant = combatant_setup()
+	combatant.strength = strength
+	opponent = opponent_setup()
+	mocker.patch('src.models.Dice.roll', return_value=dice_roll)
+	opponent_init_hp = opponent.hit_points
+	combatant.attack(opponent)
+	assert opponent.hit_points == max(0, opponent_init_hp - expected_damage)
+	assert opponent.is_alive == survive
