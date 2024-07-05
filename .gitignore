@@ -2,7 +2,9 @@
 *.class
 
 # Python
-*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
 
 # Intellij
 .idea/
