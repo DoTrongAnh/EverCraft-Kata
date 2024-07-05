@@ -1,10 +1,19 @@
 from enum import Enum
+import random
 
 
 class Alignment(Enum):
 	GOOD = 'good'
 	EVIL = 'evil'
 	NEUTRAL = 'neutral'
+
+
+class Dice:
+	sides = list(range(1, 21))
+
+	@classmethod
+	def roll(cls):
+		return random.choice(cls.sides)
 
 
 class Character:
@@ -35,6 +44,7 @@ class Character:
 class Combatant(Character):
 	_armor_class: int
 	_hit_points: int
+	_is_alive: bool = True
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
@@ -56,3 +66,22 @@ class Combatant(Character):
 	@hit_points.setter
 	def hit_points(self, hit_points: int):
 		self._hit_points = hit_points
+
+	@property
+	def is_alive(self):
+		return self._is_alive
+
+	def take_damage(self, damage: int):
+		self._hit_points = max(self._hit_points - damage, 0)
+		if self._hit_points <= 0:
+			self._is_alive = False
+
+	def attack(self, opponent):
+		dice_roll = Dice.roll()
+		damage = 0
+		if dice_roll == 20 or dice_roll >= opponent.armor_class:
+			damage = 1
+		if dice_roll == 20:
+			damage *= 2
+		if damage:
+			opponent.take_damage(damage)
