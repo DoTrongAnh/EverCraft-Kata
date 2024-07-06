@@ -1,5 +1,6 @@
 from enum import Enum
 import random
+from typing import Callable
 
 
 class Ability:
@@ -160,15 +161,21 @@ class Combatant(Character):
 	_armor_class: int
 	_hit_points: int
 	_is_alive: bool = True
+	_hit_points_per_level: int = 5
+	_crit_multiplier: int = 2
+	_base_damage: int = 1
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 		self._armor_class = kwargs.get('armor_class', 10)
 		self._hit_points = kwargs.get('hit_points', 5)
 
+	def _roll_per_lvl(self):
+		return self._level // 2
+
 	@property
 	def armor_class(self):
-		return self._armor_class + Ability.get_modifier(self._dexterity)
+		return self._armor_class + Ability.get_modifier(self.dexterity)
 
 	@armor_class.setter
 	def armor_class(self, armor_class: int):
@@ -176,9 +183,9 @@ class Combatant(Character):
 
 	@property
 	def hit_points(self):
-		if self._hit_points >= 0 and - Ability.get_modifier(self._constitution) >= self._hit_points:
+		if self._hit_points >= 0 and - Ability.get_modifier(self.constitution) >= self._hit_points:
 			return 1
-		return self._hit_points + Ability.get_modifier(self._constitution)
+		return self._hit_points + Ability.get_modifier(self.constitution)
 
 	@hit_points.setter
 	def hit_points(self, hit_points: int):
@@ -194,20 +201,30 @@ class Combatant(Character):
 		if self.hit_points <= 0:
 			self._is_alive = False
 
+	def attack_mod(self):
+		return Ability.get_modifier(self.strength)
+
+	def get_opponent_armor_class(self, opponent):
+		return opponent.armor_class
+
+	def get_base_damage_and_crit_mult_on_opponent(self, opponent):
+		return self._base_damage, self._crit_multiplier
+
 	def attack(self, opponent):
 		dice_roll = Dice.roll()
 		damage = 0
 		# Check if original roll is a crit
 		crit = dice_roll == 20
-		mod = Ability.get_modifier(self._strength)
+		mod = self.attack_mod()
 		# Add original modifier to dice roll
-		dice_roll += mod + self._level // 2
-		if crit or dice_roll >= opponent.armor_class:
-			damage = 1
+		dice_roll += mod + self._roll_per_lvl()
+		base_dmg, base_crit = self.get_base_damage_and_crit_mult_on_opponent(opponent)
+		if crit or dice_roll >= self.get_opponent_armor_class(opponent):
+			damage = base_dmg
 		# Double damage and modifier when crit
 		if crit:
-			damage *= 2
-			mod *= 2
+			damage *= base_crit
+			mod *= base_crit
 		# If damage is 0, attack misses and modifier does nothing
 		if damage:
 			damage = max(1, damage + mod)
@@ -216,4 +233,74 @@ class Combatant(Character):
 
 	def level_up(self):
 		super().level_up()
-		self._hit_points += 5
+		self._hit_points += self._hit_points_per_level
+
+
+class Fighter(Combatant):
+	_hit_points_per_level = 10
+	
+	def _roll_per_lvl(self):
+		return self._level
+
+
+class Rogue(Combatant):
+	_crit_multiplier = 3
+
+	def __init__(self, **kwargs):
+		super().__init__(*kwargs)
+		if self.alignment == Alignment.GOOD:
+			self.alignment = Alignment.NEUTRAL
+
+	@Combatant.alignment.setter
+	def alignment(self, value):
+		if value == Alignment.GOOD:
+			return
+		super().alignment.__set__(value)
+
+	def get_opponent_armor_class(self, opponent):
+		armor = super().get_opponent_armor_class(opponent)
+		mod = Ability.get_modifier(opponent.dexterity)
+		if mod > 0:
+			return armor - mod
+
+	def attack_mod(self):
+		return Ability.get_modifier(self.dexterity)
+
+
+class Monk(Combatant):
+	_hit_points_per_level = 6
+	_base_damage = 3
+
+	def _roll_per_lvl(self):
+		return self._level // 3 + (self._level + 1) // 3 
+
+	@property
+	def armor_class(self):
+		armor = super().armor_class.__get__()
+		return armor + Ability.get_modifier(self.wisdom)
+
+
+class Paladin(Combatant):
+	_hit_points_per_level = 8
+	
+	def _roll_per_lvl(self):
+		return self._level
+
+	def __init__(self, **kwargs):
+		super().__init__(*kwargs)
+		if self.alignment != Alignment.GOOD:
+			self.alignment = Alignment.GOOD
+
+	@Combatant.alignment.setter
+	def alignment(self, value):
+		if value != Alignment.GOOD:
+			return
+		super().alignment.__set__(value)
+
+	def get_base_damage_and_crit_mult_on_opponent(self, opponent):
+		dmg = super().get_base_damage_on_opponent(opponent)
+		crit = self._crit_multiplier
+		if opponent.alignment == Alignment.EVIL:
+			dmg += 2
+			crit = 3
+		return dmg, crit
