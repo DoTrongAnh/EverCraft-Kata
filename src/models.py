@@ -58,6 +58,7 @@ class Character:
     _wisdom: int
     _intelligence: int
     _charisma: int
+    _experience: int = 0
 
     def __init__(self, **kwargs):
         self._name = kwargs.get('name', '')
@@ -133,6 +134,10 @@ class Character:
     def charisma(self, value):
     	self._charisma = Ability.set_ability(value)
 
+    @property
+    def experience(self):
+    	return self._experience
+
 
 class Combatant(Character):
 	_armor_class: int
@@ -146,7 +151,7 @@ class Combatant(Character):
 
 	@property
 	def armor_class(self):
-		return self._armor_class
+		return self._armor_class + Ability.get_modifier(self._dexterity)
 
 	@armor_class.setter
 	def armor_class(self, armor_class: int):
@@ -154,7 +159,9 @@ class Combatant(Character):
 
 	@property
 	def hit_points(self):
-		return self._hit_points
+		if self._hit_points >= 0 and - Ability.get_modifier(self._constitution) >= self._hit_points:
+			return 1
+		return self._hit_points + Ability.get_modifier(self._constitution)
 
 	@hit_points.setter
 	def hit_points(self, hit_points: int):
@@ -166,8 +173,8 @@ class Combatant(Character):
 
 	def take_damage(self, damage: int):
 		# Ensure the Combatant is not healed or overkilled
-		self._hit_points = min(self._hit_points, max(self._hit_points - damage, 0))
-		if self._hit_points <= 0:
+		self._hit_points -= damage
+		if self.hit_points <= 0:
 			self._is_alive = False
 
 	def attack(self, opponent):
@@ -188,3 +195,4 @@ class Combatant(Character):
 		if damage:
 			damage = max(1, damage + mod)
 			opponent.take_damage(damage)
+			self._experience += 10

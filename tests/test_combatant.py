@@ -76,9 +76,12 @@ def test_combatant_attack(mocker, dice_roll, expected_damage):
 	combatant = combatant_setup()
 	opponent = opponent_setup()
 	mocker.patch('src.models.Dice.roll', return_value=dice_roll)
+	combatant_init_exp = combatant.experience
 	opponent_init_hp = opponent.hit_points
 	combatant.attack(opponent)
-	assert opponent.hit_points == max(0, opponent_init_hp - expected_damage)
+	assert opponent.hit_points == opponent_init_hp - expected_damage
+	if expected_damage:
+		assert combatant.experience == combatant_init_exp + 10
 
 
 def test_combatant_attack_fatal(mocker):
@@ -91,7 +94,7 @@ def test_combatant_attack_fatal(mocker):
 	opponent.hit_points = 1
 	mocker.patch('src.models.Dice.roll', return_value=20)
 	combatant.attack(opponent)
-	assert not opponent.is_alive
+	assert not opponent.is_alive, f'{opponent.hit_points}'
 
 
 @pytest.mark.parametrize(
@@ -119,5 +122,24 @@ def test_combatant_attack_with_modifier(mocker, dice_roll, strength, expected_da
 	mocker.patch('src.models.Dice.roll', return_value=dice_roll)
 	opponent_init_hp = opponent.hit_points
 	combatant.attack(opponent)
-	assert opponent.hit_points == max(0, opponent_init_hp - expected_damage)
+	assert opponent.hit_points == opponent_init_hp - expected_damage
 	assert opponent.is_alive == survive
+
+
+@pytest.mark.parametrize('dex, armor', [(1, 5), (5, 7), (10, 10), (15, 12), (20, 15)])
+def test_combatant_armor_class_with_modifier(dex, armor):
+	"""
+	Test case for armor_class modifier with dexterity
+	"""
+	combatant = combatant_setup()
+	combatant.dexterity = dex
+	assert combatant.armor_class == armor
+
+@pytest.mark.parametrize('con, hp', [(1, 1), (5, 2), (10, 5), (15, 7), (20, 10)])
+def test_combatant_hit_points_with_modifier(con, hp):
+	"""
+	Test case for hit_points modifier with constitution
+	"""
+	combatant = combatant_setup()
+	combatant.constitution = con
+	assert combatant.hit_points == hp
