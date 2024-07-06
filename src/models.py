@@ -59,6 +59,7 @@ class Character:
     _intelligence: int
     _charisma: int
     _experience: int = 0
+    _level: int = 1
 
     def __init__(self, **kwargs):
         self._name = kwargs.get('name', '')
@@ -138,6 +139,22 @@ class Character:
     def experience(self):
     	return self._experience
 
+    @property
+    def level(self):
+    	return self._level
+    
+
+    def gain_exp(self, value):
+    	EXP_PER_LEVEL = 1000
+    	old_exp  = self._experience
+    	self._experience += value
+    	if value > 0:
+    		for _ in range(old_exp // EXP_PER_LEVEL, self._experience // EXP_PER_LEVEL):
+    			self.level_up()
+
+    def level_up(self):
+    	self._level += 1
+
 
 class Combatant(Character):
 	_armor_class: int
@@ -186,7 +203,7 @@ class Combatant(Character):
 		# Add original modifier to dice roll
 		dice_roll += mod
 		if crit or dice_roll >= opponent.armor_class:
-			damage = 1
+			damage = 1 + self._level // 2
 		# Double damage and modifier when crit
 		if crit:
 			damage *= 2
@@ -195,4 +212,8 @@ class Combatant(Character):
 		if damage:
 			damage = max(1, damage + mod)
 			opponent.take_damage(damage)
-			self._experience += 10
+			self.gain_exp(10)
+
+	def level_up(self):
+		super().level_up()
+		self._hit_points += 5

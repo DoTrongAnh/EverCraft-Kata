@@ -143,3 +143,31 @@ def test_combatant_hit_points_with_modifier(con, hp):
 	combatant = combatant_setup()
 	combatant.constitution = con
 	assert combatant.hit_points == hp
+
+
+@pytest.mark.parametrize(
+	'exp, level, hp, crit, expected_dmg',
+	[
+		(0, 1, 5, False, 1),  # Combatant level 1
+		(100, 1, 5, False, 1),  # Combatant level 1
+		(1000, 2, 10, False, 2),  # Combatant level 2
+		(1000, 2, 10, True, 4),  # Combatant level 2
+		(2000, 3, 15, False, 2),  # Combatant level 3
+		(2000, 3, 15, True, 4),  # Combatant level 3
+		(3000, 4, 20, False, 3),  # Combatant level 4
+		(3000, 4, 20, True, 6),  # Combatant level 4
+	]
+)
+def test_combatant_level(mocker, exp, level, hp, crit, expected_dmg):
+	"""
+	Test case for Combatant level behavior
+	"""
+	combatant = combatant_setup()
+	opponent = opponent_setup()
+	combatant.gain_exp(exp)
+	mocker.patch('src.models.Dice.roll', return_value=20 if crit else 10)
+	assert combatant.hit_points == hp
+	assert combatant.level == level
+	opponent_init_hp = opponent.hit_points
+	combatant.attack(opponent)
+	assert opponent.hit_points == opponent_init_hp - expected_dmg
