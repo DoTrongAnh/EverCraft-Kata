@@ -201,9 +201,9 @@ class Combatant(Character):
 		crit = dice_roll == 20
 		mod = Ability.get_modifier(self._strength)
 		# Add original modifier to dice roll
-		dice_roll += mod
+		dice_roll += mod + self._level // 2
 		if crit or dice_roll >= opponent.armor_class:
-			damage = 1 + self._level // 2
+			damage = 1
 		# Double damage and modifier when crit
 		if crit:
 			damage *= 2
